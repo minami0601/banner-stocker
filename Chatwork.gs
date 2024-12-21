@@ -120,17 +120,15 @@ function getDownloadableImageUrl(roomId, fileId) {
   try {
     const response = UrlFetchApp.fetch(url, options);
     const responseCode = response.getResponseCode();
-    console.log('File API Response Code:', responseCode);
 
     if (responseCode === 200) {
       const fileInfo = JSON.parse(response.getContentText());
-      console.log('File Info:', fileInfo);
-
       if (fileInfo && fileInfo.download_url) {
         // ダウンロードURLにAPIトークンを追加
-        const downloadUrl = fileInfo.download_url;
-        console.log('Download URL:', downloadUrl);
-        return downloadUrl;  // APIから返されたURLをそのまま使用
+        const downloadUrl = new URL(fileInfo.download_url);
+        downloadUrl.searchParams.append('create_download_url', '1');
+        downloadUrl.searchParams.append('token', token);
+        return downloadUrl.toString();
       }
     } else {
       console.error('Error getting download URL:', responseCode, response.getContentText());

@@ -37,17 +37,18 @@ function processMessage(data) {
     messageBody
   });
 
-  // 画像、URL、ジャンルを抽出
-  // Note: getChatworkMessageFiles, getDownloadableImageUrl は Chatwork.gs で定義
+  // 画像、URL、ジャンル、メモを抽出
   const imageUrl = extractImageUrl(roomId, messageId);
   const lpUrl = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
+  const memo = extractMemo(messageBody);
 
   console.log('Extracted information:', {
     hasImage: !!imageUrl,
     hasUrl: !!lpUrl,
     hasGenre: !!genre,
-    genre: genre
+    genre: genre,
+    memo: memo
   });
 
   if (!imageUrl || !lpUrl || !genre) {
@@ -60,14 +61,14 @@ function processMessage(data) {
   }
 
   // スプレッドシートに保存
-  // Note: saveToSpreadsheet は Spreadsheet.gs で定義
   console.log('Saving to spreadsheet:', {
     imageUrl,
     lpUrl,
-    genre
+    genre,
+    memo
   });
 
-  saveToSpreadsheet(imageUrl, lpUrl, genre);
+  saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
   console.log('Successfully saved to spreadsheet');
 }
 
@@ -145,14 +146,26 @@ function extractGenre(message) {
   return null;
 }
 
+// テモを抽出する関数
+function extractMemo(message) {
+  // メモタグを探す（例: 「メモ：ここにメモ」や「※ここにメモ」など）
+  const memoMatch = message.match(/(?:メモ[：:]\s*|※\s*)([^\n]+)/);
+
+  if (memoMatch && memoMatch[1]) {
+    return memoMatch[1].trim();
+  }
+
+  return '';  // メモがない場合は空文字を返す
+}
+
 // テスト用の関数
 function testProcessMessage() {
   // テスト用のWebhookデータを作成
   const testData = {
     webhook_event: {
       message_id: "test_message_id",
-      room_id: 123456,  // 実際のルームIDに変更してください
-      body: "テスト投稿です\nhttps://example.com/test\nジャンル：テスト",
+      room_id: 123456,
+      body: "テスト投稿です\nhttps://example.com/test\nジャンル：テスト\nメモ：これはテストメモです",
       account: {
         account_id: 123456,
         name: "Test User"

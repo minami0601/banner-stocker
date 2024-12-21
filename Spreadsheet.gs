@@ -2,7 +2,7 @@
 const SPREADSHEET_ID = '1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI'; // ここにスプレッドシートのIDを入力してください
 
 // スプレッドシートにデータを保存する関数
-function saveToSpreadsheet(imageUrl, lpUrl, genre) {
+function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '') {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
   // 目次シートの取得または作成
@@ -25,7 +25,8 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre) {
     imageUrl,
     `=IMAGE("${imageUrl}")`,
     lpUrl,
-    genre
+    genre,
+    memo
   ]);
 }
 
@@ -40,11 +41,33 @@ function createIndexSheet(ss) {
 // ジャンル別シートを作成する関数
 function createGenreSheet(ss, genre) {
   const sheet = ss.insertSheet(genre);
-  const headers = ['日時', '画像URL', 'プレビュー', 'LP URL', 'ジャンル'];
+  const headers = ['日時', '画像URL', 'プレビュー', 'LP URL', 'ジャンル', 'メモ'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // 列幅の設定
   sheet.setColumnWidth(3, 300); // プレビュー列を広めに
+  sheet.setColumnWidth(6, 200); // メモ列を広めに
+
+  // 行の高さの設定
+  sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
+  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 100);  // データ行を高めに（プレビュー画像用）
+
+  // メモ列のスタイル設定
+  const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
+  memoColumn.setWrap(true);  // 折り返しを有効に
+
+  // ヘッダー行のスタイル設定
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setBackground('#f3f3f3')  // 背景色
+            .setFontWeight('bold')      // 太字
+            .setHorizontalAlignment('center')  // 中央揃え
+            .setVerticalAlignment('middle');   // 垂直方向も中央揃え
+
+  // データ行の中央揃え（プレビュー列）
+  const previewColumn = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
+  previewColumn.setHorizontalAlignment('center')
+               .setVerticalAlignment('middle');
+
   return sheet;
 }
 
@@ -53,4 +76,69 @@ function updateIndexSheet(indexSheet, genre) {
   const lastRow = indexSheet.getLastRow();
   const formula = `=HYPERLINK("#gid=${SpreadsheetApp.getActiveSpreadsheet().getSheetByName(genre).getSheetId()}", "${genre}")`;
   indexSheet.getRange(lastRow + 1, 1).setFormula(formula);
+}
+
+// メモを更新する関数
+function updateMemo(genre, rowIndex, memo) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(genre);
+
+  if (!sheet) {
+    throw new Error(`Sheet for genre "${genre}" not found`);
+  }
+
+  // メモ列（6列目）を更新
+  sheet.getRange(rowIndex, 6).setValue(memo);
+}
+
+// 既存シートのスタイルを更新する関数
+function updateSheetStyle(sheetName) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  // 列幅の設定
+  sheet.setColumnWidth(3, 300); // プレビュー列を広めに
+  sheet.setColumnWidth(6, 200); // メモ列を広めに
+
+  // 行の高さの設定
+  sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
+  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 100);  // データ行を高めに
+
+  // メモ列のスタイル設定
+  const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
+  memoColumn.setWrap(true);  // 折り返しを有効に
+
+  // ヘッダー行のスタイル設定
+  const headerRange = sheet.getRange(1, 1, 1, 6);
+  headerRange.setBackground('#f3f3f3')
+            .setFontWeight('bold')
+            .setHorizontalAlignment('center')
+            .setVerticalAlignment('middle');
+
+  // データ行の中央揃え（プレビュー列）
+  const previewColumn = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
+  previewColumn.setHorizontalAlignment('center')
+               .setVerticalAlignment('middle');
+}
+
+// 全シートのスタイルを更新する関数
+function updateAllSheetsStyle() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheets = ss.getSheets();
+
+  for (const sheet of sheets) {
+    const sheetName = sheet.getName();
+    if (sheetName !== '目次') {  // 目次シート以外を更新
+      try {
+        updateSheetStyle(sheetName);
+        console.log(`Updated style for sheet: ${sheetName}`);
+      } catch (error) {
+        console.error(`Error updating sheet ${sheetName}:`, error);
+      }
+    }
+  }
 }

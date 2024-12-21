@@ -1,3 +1,9 @@
+// Webhookのヘルスチェック用エンドポイント
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 // Chatworkからのwebhookを受け取るエンドポイント
 function doPost(e) {
   try {

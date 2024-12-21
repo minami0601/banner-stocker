@@ -24,16 +24,31 @@ function doPost(e) {
 
 // メッセージを処理する関数
 function processMessage(data) {
+  console.log('Received webhook data:', JSON.stringify(data));
+
   const message = data.webhook_event;
   const messageId = message.message_id;
   const roomId = message.room_id;
   const messageBody = message.body;
+
+  console.log('Processing message:', {
+    messageId,
+    roomId,
+    messageBody
+  });
 
   // 画像、URL、ジャンルを抽出
   // Note: getChatworkMessageFiles, getDownloadableImageUrl は Chatwork.gs で定義
   const imageUrl = extractImageUrl(roomId, messageId);
   const lpUrl = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
+
+  console.log('Extracted information:', {
+    hasImage: !!imageUrl,
+    hasUrl: !!lpUrl,
+    hasGenre: !!genre,
+    genre: genre
+  });
 
   if (!imageUrl || !lpUrl || !genre) {
     console.log('Required information missing:', {
@@ -46,7 +61,14 @@ function processMessage(data) {
 
   // スプレッドシートに保存
   // Note: saveToSpreadsheet は Spreadsheet.gs で定義
+  console.log('Saving to spreadsheet:', {
+    imageUrl,
+    lpUrl,
+    genre
+  });
+
   saveToSpreadsheet(imageUrl, lpUrl, genre);
+  console.log('Successfully saved to spreadsheet');
 }
 
 // 画像URLを抽出する関数
@@ -121,4 +143,26 @@ function extractGenre(message) {
   }
 
   return null;
+}
+
+// テスト用の関数
+function testProcessMessage() {
+  // テスト用のWebhookデータを作成
+  const testData = {
+    webhook_event: {
+      message_id: "test_message_id",
+      room_id: 123456,  // 実際のルームIDに変更してください
+      body: "テスト投稿です\nhttps://example.com/test\nジャンル：テスト",
+      account: {
+        account_id: 123456,
+        name: "Test User"
+      },
+      send_time: Date.now()
+    }
+  };
+
+  console.log('Starting test with data:', JSON.stringify(testData, null, 2));
+
+  // processMessage関数を実行
+  processMessage(testData);
 }

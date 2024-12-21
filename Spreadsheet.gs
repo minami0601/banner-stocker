@@ -1,6 +1,9 @@
+// スプレッドシートのIDを設定
+const SPREADSHEET_ID = '1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI'; // ここにスプレッドシートのIDを入力してください
+
 // スプレッドシートにデータを保存する関数
 function saveToSpreadsheet(imageUrl, lpUrl, genre) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
   // 目次シートの取得または作成
   let indexSheet = ss.getSheetByName('目次');

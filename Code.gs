@@ -1,75 +1,116 @@
 // Webhookのヘルスチェック用エンドポイント
 function doGet(e) {
+  console.log('Received GET request:', JSON.stringify(e));
   return ContentService.createTextOutput(JSON.stringify({ status: 'ok' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Chatworkからのwebhookを受け取るエンドポイント
 function doPost(e) {
+  console.log('Received POST request. Starting processing...');
+
   try {
-    // リクエストデータの取得
+    // リクエストデータの取得と検証
+    if (!e || !e.postData || !e.postData.contents) {
+      console.error('Invalid request format:', JSON.stringify(e));
+      throw new Error('Invalid request format');
+    }
+
+    // リクエストデータの解析
+    console.log('Raw request data:', e.postData.contents);
     const data = JSON.parse(e.postData.contents);
+    console.log('Parsed webhook data:', JSON.stringify(data, null, 2));
+
+    // webhook_eventの存在確認
+    if (!data.webhook_event) {
+      console.error('webhook_event not found in data');
+      throw new Error('webhook_event not found');
+    }
 
     // メッセージの処理
-    processMessage(data);
+    const result = processMessage(data);
+    console.log('Message processing result:', result);
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'success',
+      message: 'Webhook processed successfully'
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+
   } catch (error) {
-    console.error('Error in doPost:', error);
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    console.error('Error in doPost:', error.message);
+    console.error('Error stack:', error.stack);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 // メッセージを処理する関数
 function processMessage(data) {
-  console.log('Received webhook data:', JSON.stringify(data));
+  console.log('Starting message processing...');
 
-  const message = data.webhook_event;
-  const messageId = message.message_id;
-  const roomId = message.room_id;
-  const messageBody = message.body;
+  try {
+    const message = data.webhook_event;
+    const messageId = message.message_id;
+    const roomId = message.room_id;
+    const messageBody = message.body;
 
-  console.log('Processing message:', {
-    messageId,
-    roomId,
-    messageBody
-  });
-
-  // 画像、URL、ジャンル、メモを抽出
-  const imageUrl = extractImageUrl(roomId, messageId);
-  const lpUrl = extractLpUrl(messageBody);
-  const genre = extractGenre(messageBody);
-  const memo = extractMemo(messageBody);
-
-  console.log('Extracted information:', {
-    hasImage: !!imageUrl,
-    hasUrl: !!lpUrl,
-    hasGenre: !!genre,
-    genre: genre,
-    memo: memo
-  });
-
-  if (!imageUrl || !lpUrl || !genre) {
-    console.log('Required information missing:', {
-      hasImage: !!imageUrl,
-      hasUrl: !!lpUrl,
-      hasGenre: !!genre
+    console.log('Message details:', {
+      messageId,
+      roomId,
+      messageBody
     });
-    return;
+
+    // 画像、URL、ジャンル、メモを抽出
+    console.log('Extracting image URL...');
+    const imageUrl = extractImageUrl(roomId, messageId);
+    console.log('Extracted image URL:', imageUrl);
+
+    console.log('Extracting LP URL...');
+    const lpUrl = extractLpUrl(messageBody);
+    console.log('Extracted LP URL:', lpUrl);
+
+    console.log('Extracting genre...');
+    const genre = extractGenre(messageBody);
+    console.log('Extracted genre:', genre);
+
+    console.log('Extracting memo...');
+    const memo = extractMemo(messageBody);
+    console.log('Extracted memo:', memo);
+
+    // 必要な情報が揃っているか確認
+    if (!imageUrl || !lpUrl || !genre) {
+      console.log('Required information missing:', {
+        hasImage: !!imageUrl,
+        hasUrl: !!lpUrl,
+        hasGenre: !!genre,
+        genre: genre
+      });
+      return {
+        status: 'error',
+        message: 'Required information missing'
+      };
+    }
+
+    // スプレッドシートに保存
+    console.log('Saving to spreadsheet...');
+    saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+    console.log('Successfully saved to spreadsheet');
+
+    return {
+      status: 'success',
+      message: 'Message processed successfully'
+    };
+
+  } catch (error) {
+    console.error('Error in processMessage:', error);
+    throw error;
   }
-
-  // スプレッドシートに保存
-  console.log('Saving to spreadsheet:', {
-    imageUrl,
-    lpUrl,
-    genre,
-    memo
-  });
-
-  saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
-  console.log('Successfully saved to spreadsheet');
 }
 
 // 画像URLを抽出する関数
@@ -77,6 +118,12 @@ function extractImageUrl(roomId, messageId) {
   try {
     // メッセージに添付されたファイルを取得
     const files = getChatworkMessageFiles(roomId, messageId);
+    console.log('Retrieved files:', files);
+
+    if (!files || files.length === 0) {
+      console.log('No files found in message');
+      return null;
+    }
 
     // 画像ファイルを探す
     const imageFile = files.find(file =>
@@ -84,46 +131,28 @@ function extractImageUrl(roomId, messageId) {
     );
 
     if (!imageFile) {
+      console.log('No image file found in message');
       return null;
     }
 
+    console.log('Found image file:', imageFile);
+
     // 画像のダウンロードURLを取得
     const downloadUrl = getDownloadableImageUrl(roomId, imageFile.file_id);
+    console.log('Got download URL:', downloadUrl);
+
+    if (!downloadUrl) {
+      console.log('Failed to get download URL');
+      return null;
+    }
 
     // 画像をGoogle Driveに保存
     return saveImageToDrive(downloadUrl, imageFile.filename);
+
   } catch (error) {
     console.error('Error extracting image URL:', error);
     return null;
   }
-}
-
-// 画像をGoogle Driveに保存する関数
-function saveImageToDrive(imageUrl, filename) {
-  const folder = getDriveFolder();
-  const response = UrlFetchApp.fetch(imageUrl);
-  const blob = response.getBlob();
-  const file = folder.createFile(blob);
-  file.setName(filename);
-
-  // 共有設定を変更
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-  // スプレッドシートのIMAGE関数で表示可能なURLを生成
-  const fileId = file.getId();
-  return `https://drive.google.com/uc?export=view&id=${fileId}`;
-}
-
-// Google Driveのフォルダを取得または作成する関数
-function getDriveFolder() {
-  const folderName = 'BannerStock Images';
-  const folders = DriveApp.getFoldersByName(folderName);
-
-  if (folders.hasNext()) {
-    return folders.next();
-  }
-
-  return DriveApp.createFolder(folderName);
 }
 
 // LPのURLを抽出する関数
@@ -156,6 +185,45 @@ function extractMemo(message) {
   }
 
   return '';  // メモがない場合は空文字を返す
+}
+
+// 画像をGoogle Driveに保存する関数
+function saveImageToDrive(imageUrl, filename) {
+  console.log('Saving image to Drive:', { imageUrl, filename });
+
+  try {
+    const folder = getDriveFolder();
+    const response = UrlFetchApp.fetch(imageUrl);
+    const blob = response.getBlob();
+    const file = folder.createFile(blob);
+    file.setName(filename);
+
+    // 共有設定を変更
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    // スプレッドシートのIMAGE関数で表示可能なURLを生成
+    const fileId = file.getId();
+    const driveUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+    console.log('Successfully saved image to Drive:', driveUrl);
+    return driveUrl;
+
+  } catch (error) {
+    console.error('Error saving image to Drive:', error);
+    return null;
+  }
+}
+
+// Google Driveのフォルダを取得または作成する関数
+function getDriveFolder() {
+  const folderName = 'BannerStock Images';
+  const folders = DriveApp.getFoldersByName(folderName);
+
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+
+  return DriveApp.createFolder(folderName);
 }
 
 // テスト用の関数

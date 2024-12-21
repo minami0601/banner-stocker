@@ -3,12 +3,31 @@ const CHATWORK_API_BASE = 'https://api.chatwork.com/v2';
 
 // メッセージに添付されたファイルを取得する関数
 function getChatworkMessageFiles(roomId, messageId) {
+  console.log('Getting files for message:', { roomId, messageId });
+
+  // メッセージ本文からファイル情報を直接抽出
+  const messageBody = getMessageBody(roomId, messageId);
+  if (!messageBody) {
+    console.error('Failed to get message body');
+    return null;
+  }
+
+  const fileInfo = extractFileInfoFromMessage(messageBody);
+  if (!fileInfo) {
+    console.error('No file information found in message');
+    return null;
+  }
+
+  return [fileInfo];
+}
+
+// メッセージ本文を取得する関数
+function getMessageBody(roomId, messageId) {
   const token = PropertiesService.getScriptProperties().getProperty('CHATWORK_API_TOKEN');
   if (!token) {
     throw new Error('Chatwork API token not found in script properties');
   }
 
-  // メッセージの詳細を取得して、その中からファイル情報を抽出
   const url = `${CHATWORK_API_BASE}/rooms/${roomId}/messages/${messageId}`;
   const options = {
     method: 'GET',
@@ -21,55 +40,17 @@ function getChatworkMessageFiles(roomId, messageId) {
   try {
     const response = UrlFetchApp.fetch(url, options);
     const responseCode = response.getResponseCode();
-    console.log('API Response Code:', responseCode);
-    console.log('API Response Headers:', response.getAllHeaders());
+    console.log('Message API Response Code:', responseCode);
 
     if (responseCode === 200) {
       const messageData = JSON.parse(response.getContentText());
-      console.log('Message Data:', messageData);
-
-      // レスポンスの構造を確認
-      if (!messageData.body) {
-        console.error('Message body not found in response');
-        return null;
-      }
-
-      // メッセージ本文からファイル情報を解析
-      const fileInfo = extractFileInfoFromMessage(messageData.body);
-      console.log('Extracted File Info:', fileInfo);
-
-      if (fileInfo) {
-        return [{
-          file_id: fileInfo.fileId,
-          filename: fileInfo.filename
-        }];
-      }
+      return messageData.body;
     } else {
       console.error('Error fetching message:', responseCode, response.getContentText());
-      // エラーレスポンスの詳細をログ出力
-      switch (responseCode) {
-        case 400:
-          console.error('Invalid request parameters');
-          break;
-        case 401:
-          console.error('Authentication failed');
-          break;
-        case 403:
-          console.error('Permission denied');
-          break;
-        case 404:
-          console.error('Message not found');
-          break;
-        case 429:
-          console.error('Rate limit exceeded');
-          break;
-        default:
-          console.error('Unknown error occurred');
-      }
+      return null;
     }
-    return null;
   } catch (error) {
-    console.error('Error in getChatworkMessageFiles:', error);
+    console.error('Error in getMessageBody:', error);
     return null;
   }
 }
@@ -78,27 +59,34 @@ function getChatworkMessageFiles(roomId, messageId) {
 function extractFileInfoFromMessage(messageBody) {
   console.log('Processing message body:', messageBody);
 
-  // Chatworkのファイル添付形式を正規表現で検出
-  // [info][title]...[/title][preview id=1234...]の形式も考慮
-  const filePatterns = [
-    /\[download:(\d+)\](.*?)\s*\([^)]*\)\[\/download\]/,  // 通常の添付ファイル形式
-    /\[preview id=(\d+)[^\]]*\].*?\[download:\1\](.*?)\s*\([^)]*\)\[\/download\]/  // プレビュー付きの形式
-  ];
+  // プレビューIDとファイル名を抽出
+  const previewPattern = /\[preview id=(\d+)[^\]]*\]/;
+  const previewMatch = messageBody.match(previewPattern);
 
-  for (const pattern of filePatterns) {
-    const match = messageBody.match(pattern);
-    if (match) {
-      const fileInfo = {
-        fileId: match[1],
-        filename: match[2].trim()
-      };
-      console.log('Found file info:', fileInfo);
-      return fileInfo;
-    }
+  if (!previewMatch) {
+    console.log('No preview ID found in message');
+    return null;
   }
 
-  console.log('No file information found in message');
-  return null;
+  const fileId = previewMatch[1];
+  console.log('Found file ID:', fileId);
+
+  // ファイル名を抽出
+  const downloadPattern = new RegExp(`\\[download:${fileId}\\](.*?)\\s*\\([^)]*\\)\\[\\/download\\]`);
+  const downloadMatch = messageBody.match(downloadPattern);
+
+  if (!downloadMatch) {
+    console.log('No matching download tag found');
+    return null;
+  }
+
+  const filename = downloadMatch[1].trim();
+  console.log('Found filename:', filename);
+
+  return {
+    file_id: fileId,
+    filename: filename
+  };
 }
 
 // 画像のダウンロードURLを取得する関数
@@ -120,15 +108,14 @@ function getDownloadableImageUrl(roomId, fileId) {
   try {
     const response = UrlFetchApp.fetch(url, options);
     const responseCode = response.getResponseCode();
+    console.log('File API Response Code:', responseCode);
 
     if (responseCode === 200) {
       const fileInfo = JSON.parse(response.getContentText());
+      console.log('File Info:', fileInfo);
+
       if (fileInfo && fileInfo.download_url) {
-        // ダウンロードURLにAPIトークンを追加
-        const downloadUrl = new URL(fileInfo.download_url);
-        downloadUrl.searchParams.append('create_download_url', '1');
-        downloadUrl.searchParams.append('token', token);
-        return downloadUrl.toString();
+        return fileInfo.download_url;  // APIから返されたURLをそのまま使用
       }
     } else {
       console.error('Error getting download URL:', responseCode, response.getContentText());

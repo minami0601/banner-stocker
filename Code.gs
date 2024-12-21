@@ -19,11 +19,12 @@ function doPost(e) {
 // メッセージを処理する関数
 function processMessage(data) {
   const message = data.webhook_event;
+  const messageId = message.message_id;
   const roomId = message.room_id;
   const messageBody = message.body;
 
   // 画像、URL、ジャンルを抽出
-  const imageUrl = extractImageUrl(message);
+  const imageUrl = extractImageUrl(roomId, messageId);
   const lpUrl = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
 
@@ -41,11 +42,8 @@ function processMessage(data) {
 }
 
 // 画像URLを抽出する関数
-function extractImageUrl(message) {
+function extractImageUrl(roomId, messageId) {
   try {
-    const messageId = message.message_id;
-    const roomId = message.room_id;
-
     // メッセージに添付されたファイルを取得
     const files = getChatworkMessageFiles(roomId, messageId);
 
@@ -58,8 +56,11 @@ function extractImageUrl(message) {
       return null;
     }
 
-    // 画像をGoogle Driveに保存し、永続的なURLを取得
-    return saveImageToDrive(getDownloadableImageUrl(roomId, imageFile.file_id), imageFile.filename);
+    // 画像のダウンロードURLを取得
+    const downloadUrl = getDownloadableImageUrl(roomId, imageFile.file_id);
+
+    // 画像をGoogle Driveに保存
+    return saveImageToDrive(downloadUrl, imageFile.filename);
   } catch (error) {
     console.error('Error extracting image URL:', error);
     return null;

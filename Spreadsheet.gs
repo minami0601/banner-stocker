@@ -18,30 +18,33 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '') {
     updateIndexSheet(indexSheet, genre);
   }
 
-  // データの追加
-  const timestamp = new Date();
+  // IDの生成（連番）
+  const lastRow = genreSheet.getLastRow();
+  const id = lastRow > 1 ? lastRow - 1 : 1; // ヘッダー行を考慮して-1
+
+  // データの追加（新しい列順序: ID, プレビュー, LP URL, FV, メモ, ジャンル）
   genreSheet.appendRow([
-    timestamp,
-    imageUrl,
+    id,
     `=IMAGE("${imageUrl}")`,
     lpUrl,
-    genre,
-    memo
+    '',  // FV（空欄）
+    memo,
+    genre
   ]);
 
   // 追加した行の高さを設定
-  const lastRow = genreSheet.getLastRow();
-  genreSheet.setRowHeight(lastRow, 100);  // 新しく追加した行の高さを100pxに設定
+  const newLastRow = genreSheet.getLastRow();
+  genreSheet.setRowHeight(newLastRow, 100);  // 新しく追加した行の高さを100pxに設定
 
   // 追加した行のスタイルを設定
-  const newRow = genreSheet.getRange(lastRow, 1, 1, 6);
+  const newRow = genreSheet.getRange(newLastRow, 1, 1, 6);
 
-  // プレビュー列（3列目）の中央揃え
-  newRow.getCell(1, 3).setHorizontalAlignment('center')
+  // プレビュー列（2列目）の中央揃え
+  newRow.getCell(1, 2).setHorizontalAlignment('center')
                       .setVerticalAlignment('middle');
 
-  // メモ列（6列目）の折り返し設定
-  newRow.getCell(1, 6).setWrap(true);
+  // メモ列（5列目）の折り返し設定
+  newRow.getCell(1, 5).setWrap(true);
 }
 
 // 目次シートを作成する関数
@@ -55,19 +58,23 @@ function createIndexSheet(ss) {
 // ジャンル別シートを作成する関数
 function createGenreSheet(ss, genre) {
   const sheet = ss.insertSheet(genre);
-  const headers = ['日時', '画像URL', 'プレビュー', 'LP URL', 'ジャンル', 'メモ'];
+  const headers = ['ID', 'プレビュー', 'LP URL', 'FV', 'メモ', 'ジャンル'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // 列幅の設定
-  sheet.setColumnWidth(3, 300); // プレビュー列を広めに
-  sheet.setColumnWidth(6, 200); // メモ列を広めに
+  sheet.setColumnWidth(1, 80);   // ID列
+  sheet.setColumnWidth(2, 300);  // プレビュー列
+  sheet.setColumnWidth(3, 200);  // LP URL列
+  sheet.setColumnWidth(4, 100);  // FV列
+  sheet.setColumnWidth(5, 200);  // メモ列
+  sheet.setColumnWidth(6, 100);  // ジャンル列
 
   // 行の高さの設定
   sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
   sheet.setRowHeights(2, sheet.getMaxRows() - 1, 100);  // データ行を高めに（プレビュー画像用）
 
   // メモ列のスタイル設定
-  const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
+  const memoColumn = sheet.getRange(2, 5, sheet.getMaxRows() - 1, 1);
   memoColumn.setWrap(true);  // 折り返しを有効に
 
   // ヘッダー行のスタイル設定
@@ -78,7 +85,7 @@ function createGenreSheet(ss, genre) {
             .setVerticalAlignment('middle');   // 垂直方向も中央揃え
 
   // データ行の中央揃え（プレビュー列）
-  const previewColumn = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
+  const previewColumn = sheet.getRange(2, 2, sheet.getMaxRows() - 1, 1);
   previewColumn.setHorizontalAlignment('center')
                .setVerticalAlignment('middle');
 
@@ -101,8 +108,8 @@ function updateMemo(genre, rowIndex, memo) {
     throw new Error(`Sheet for genre "${genre}" not found`);
   }
 
-  // メモ列（6列目）を更新
-  sheet.getRange(rowIndex, 6).setValue(memo);
+  // メモ列（5列目）を更新
+  sheet.getRange(rowIndex, 5).setValue(memo);
 }
 
 // 既存シートのスタイルを更新する関数
@@ -115,15 +122,19 @@ function updateSheetStyle(sheetName) {
   }
 
   // 列幅の設定
-  sheet.setColumnWidth(3, 300); // プレビュー列を広めに
-  sheet.setColumnWidth(6, 200); // メモ列を広めに
+  sheet.setColumnWidth(1, 80);   // ID列
+  sheet.setColumnWidth(2, 300);  // プレビュー列
+  sheet.setColumnWidth(3, 200);  // LP URL列
+  sheet.setColumnWidth(4, 100);  // FV列
+  sheet.setColumnWidth(5, 200);  // メモ列
+  sheet.setColumnWidth(6, 100);  // ジャンル列
 
   // 行の高さの設定
   sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
   sheet.setRowHeights(2, sheet.getMaxRows() - 1, 100);  // データ行を高めに
 
   // メモ列のスタイル設定
-  const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
+  const memoColumn = sheet.getRange(2, 5, sheet.getMaxRows() - 1, 1);
   memoColumn.setWrap(true);  // 折り返しを有効に
 
   // ヘッダー行のスタイル設定
@@ -134,7 +145,7 @@ function updateSheetStyle(sheetName) {
             .setVerticalAlignment('middle');
 
   // データ行の中央揃え（プレビュー列）
-  const previewColumn = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1);
+  const previewColumn = sheet.getRange(2, 2, sheet.getMaxRows() - 1, 1);
   previewColumn.setHorizontalAlignment('center')
                .setVerticalAlignment('middle');
 }

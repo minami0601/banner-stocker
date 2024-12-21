@@ -28,6 +28,20 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '') {
     genre,
     memo
   ]);
+
+  // 追加した行の高さを設定
+  const lastRow = genreSheet.getLastRow();
+  genreSheet.setRowHeight(lastRow, 100);  // 新しく追加した行の高さを100pxに設定
+
+  // 追加した行のスタイルを設定
+  const newRow = genreSheet.getRange(lastRow, 1, 1, 6);
+
+  // プレビュー列（3列目）の中央揃え
+  newRow.getCell(1, 3).setHorizontalAlignment('center')
+                      .setVerticalAlignment('middle');
+
+  // メモ列（6列目）の折り返し設定
+  newRow.getCell(1, 6).setWrap(true);
 }
 
 // 目次シートを作成する関数
@@ -140,5 +154,32 @@ function updateAllSheetsStyle() {
         console.error(`Error updating sheet ${sheetName}:`, error);
       }
     }
+  }
+}
+
+// 特定の行の高さを修正する関数
+function adjustRowHeight(sheetName, rowIndex, height = 100) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  sheet.setRowHeight(rowIndex, height);
+}
+
+// 特定のシートの全データ行の高さを修正する関数
+function adjustAllRowHeights(sheetName, height = 100) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    throw new Error(`Sheet "${sheetName}" not found`);
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {  // ヘッダー行以外を処理
+    sheet.setRowHeights(2, lastRow - 1, height);
   }
 }

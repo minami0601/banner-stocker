@@ -68,8 +68,15 @@ function processMessage(data) {
 
     // 画像、URL、ジャンル、メモを抽出
     console.log('Extracting image URL...');
-    const imageUrl = extractImageUrl(roomId, messageId);
-    console.log('Extracted image URL:', imageUrl);
+    const files = getChatworkMessageFiles(roomId, messageId);
+    console.log('Retrieved files:', files);
+
+    let imageUrl = null;
+    if (files && files.length > 0) {
+      console.log('Getting download URL for file:', files[0]);
+      imageUrl = getDownloadableImageUrl(roomId, files[0].file_id);
+      console.log('Got image URL:', imageUrl);
+    }
 
     console.log('Extracting LP URL...');
     const lpUrl = extractLpUrl(messageBody);
@@ -98,7 +105,12 @@ function processMessage(data) {
     }
 
     // スプレッドシートに保存
-    console.log('Saving to spreadsheet...');
+    console.log('Saving to spreadsheet with data:', {
+      imageUrl,
+      lpUrl,
+      genre,
+      memo
+    });
     saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
     console.log('Successfully saved to spreadsheet');
 

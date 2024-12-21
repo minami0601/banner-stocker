@@ -12,12 +12,14 @@ function getChatworkMessageFiles(roomId, messageId) {
     return null;
   }
 
+  console.log('Successfully got message body:', messageBody);
   const fileInfo = extractFileInfoFromMessage(messageBody);
   if (!fileInfo) {
     console.error('No file information found in message');
     return null;
   }
 
+  console.log('Successfully extracted file info:', fileInfo);
   return [fileInfo];
 }
 
@@ -44,6 +46,7 @@ function getMessageBody(roomId, messageId) {
 
     if (responseCode === 200) {
       const messageData = JSON.parse(response.getContentText());
+      console.log('Message Data:', messageData);
       return messageData.body;
     } else {
       console.error('Error fetching message:', responseCode, response.getContentText());
@@ -57,36 +60,53 @@ function getMessageBody(roomId, messageId) {
 
 // メッセージ本文からファイル情報を抽出する関数
 function extractFileInfoFromMessage(messageBody) {
-  console.log('Processing message body:', messageBody);
+  console.log('Processing message body for file info:', messageBody);
 
-  // プレビューIDとファイル名を抽出
-  const previewPattern = /\[preview id=(\d+)[^\]]*\]/;
-  const previewMatch = messageBody.match(previewPattern);
+  try {
+    // [info]タグ内のコンテンツを抽出
+    const infoPattern = /\[info\].*?\[\/info\]/s;
+    const infoMatch = messageBody.match(infoPattern);
 
-  if (!previewMatch) {
-    console.log('No preview ID found in message');
-    return null;
-  }
+    if (!infoMatch) {
+      console.log('No [info] tag found in message');
+      return null;
+    }
 
-  const fileId = previewMatch[1];
-  console.log('Found file ID:', fileId);
+    const infoContent = infoMatch[0];
+    console.log('Found info content:', infoContent);
 
-  // ファイル名を抽出
-  const downloadPattern = new RegExp(`\\[download:${fileId}\\](.*?)\\s*\\([^)]*\\)\\[\\/download\\]`);
-  const downloadMatch = messageBody.match(downloadPattern);
+    // プレビューIDを抽出
+    const previewPattern = /\[preview id=(\d+)[^\]]*\]/;
+    const previewMatch = infoContent.match(previewPattern);
 
-  if (!downloadMatch) {
-    console.log('No matching download tag found');
-    return null;
-  }
+    if (!previewMatch) {
+      console.log('No preview ID found in info content');
+      return null;
+    }
+
+    const fileId = previewMatch[1];
+    console.log('Found file ID:', fileId);
+
+    // ファイル名を抽出（ダウンロードタグから）
+    const downloadPattern = new RegExp(`\\[download:${fileId}\\](.*?)\\s*\\([^)]*\\)\\[\\/download\\]`);
+    const downloadMatch = infoContent.match(downloadPattern);
+
+    if (!downloadMatch) {
+      console.log('No matching download tag found for file ID:', fileId);
+      return null;
+    }
 
   const filename = downloadMatch[1].trim();
   console.log('Found filename:', filename);
 
-  return {
-    file_id: fileId,
-    filename: filename
-  };
+    return {
+      file_id: fileId,
+      filename: filename
+    };
+  } catch (error) {
+    console.error('Error extracting file info:', error);
+    return null;
+  }
 }
 
 // 画像のダウンロードURLを取得する関数
@@ -115,7 +135,11 @@ function getDownloadableImageUrl(roomId, fileId) {
       console.log('File Info:', fileInfo);
 
       if (fileInfo && fileInfo.download_url) {
-        return fileInfo.download_url;  // APIから返されたURLをそのまま使用
+        const downloadUrl = fileInfo.download_url;
+        console.log('Got download URL:', downloadUrl);
+        return downloadUrl;
+      } else {
+        console.error('No download URL in file info');
       }
     } else {
       console.error('Error getting download URL:', responseCode, response.getContentText());

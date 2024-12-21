@@ -24,6 +24,7 @@ function processMessage(data) {
   const messageBody = message.body;
 
   // 画像、URL、ジャンルを抽出
+  // Note: getChatworkMessageFiles, getDownloadableImageUrl は Chatwork.gs で定義
   const imageUrl = extractImageUrl(roomId, messageId);
   const lpUrl = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
@@ -38,6 +39,7 @@ function processMessage(data) {
   }
 
   // スプレッドシートに保存
+  // Note: saveToSpreadsheet は Spreadsheet.gs で定義
   saveToSpreadsheet(imageUrl, lpUrl, genre);
 }
 

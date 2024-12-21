@@ -10,9 +10,13 @@
 
 以下の3つのファイルを作成し、それぞれコードを実装します：
 
-1. `Code.gs`
-2. `Spreadsheet.gs`
-3. `Chatwork.gs`
+1. `Code.gs` - メインの処理を行うファイル
+2. `Spreadsheet.gs` - スプレッドシート操作に関する関数を含むファイル
+3. `Chatwork.gs` - Chatwork API関連の関数を含むファイル
+
+※ GASでは同じプロジェクト内の.gsファイルは自動的に結合されるため、
+ファイル間でのimport文は必要ありません。全ての関数はグローバルスコープで
+利用可能です。
 
 ## 3. Google Drive APIの有効化
 

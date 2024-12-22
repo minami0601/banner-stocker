@@ -116,7 +116,7 @@ function getDownloadableImageUrl(roomId, fileId) {
     throw new Error('Chatwork API token not found in script properties');
   }
 
-  const url = `${CHATWORK_API_BASE}/rooms/${roomId}/files/${fileId}`;
+  const url = `${CHATWORK_API_BASE}/rooms/${roomId}/files/${fileId}?create_download_url=1`;
   const options = {
     method: 'GET',
     headers: {

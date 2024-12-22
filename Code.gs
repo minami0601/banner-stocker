@@ -68,21 +68,14 @@ function processMessage(data) {
 
     // 画像、URL、ジャンル、メモを抽出
     console.log('Extracting image URL...');
-    const fileInfo = extractFileInfoFromMessage(messageBody);
-    console.log('Extracted file info:', fileInfo);
+    const files = getChatworkMessageFiles(roomId, messageId);
+    console.log('Retrieved files:', files);
 
     let imageUrl = null;
-    if (fileInfo) {
-      console.log('Getting download URL for file:', fileInfo);
-      imageUrl = getDownloadableImageUrl(roomId, fileInfo.file_id);
+    if (files && files.length > 0) {
+      console.log('Getting download URL for file:', files[0]);
+      imageUrl = getDownloadableImageUrl(roomId, files[0].file_id);
       console.log('Got image URL:', imageUrl);
-
-      if (imageUrl) {
-        // 画像をGoogle Driveに保存
-        console.log('Saving image to Drive...');
-        imageUrl = saveImageToDrive(imageUrl, fileInfo.filename);
-        console.log('Saved image URL:', imageUrl);
-      }
     }
 
     console.log('Extracting LP URL...');

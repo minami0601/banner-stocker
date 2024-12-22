@@ -34,9 +34,9 @@ function getMessageBody(roomId, messageId) {
   const options = {
     method: 'GET',
     headers: {
+      accept: 'application/json',
       'X-ChatWorkToken': token
-    },
-    muteHttpExceptions: true
+    }
   };
 
   try {

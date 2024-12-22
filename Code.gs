@@ -74,8 +74,15 @@ function processMessage(data) {
     let imageUrl = null;
     if (files && files.length > 0) {
       console.log('Getting download URL for file:', files[0]);
-      imageUrl = getDownloadableImageUrl(roomId, files[0].file_id);
-      console.log('Got image URL:', imageUrl);
+      const downloadUrl = getDownloadableImageUrl(roomId, files[0].file_id);
+      console.log('Got download URL:', downloadUrl);
+
+      if (downloadUrl) {
+        // 画像をGoogle Driveに保存
+        console.log('Saving image to Drive...');
+        imageUrl = saveImageToDrive(downloadUrl, files[0].filename);
+        console.log('Saved image to Drive, URL:', imageUrl);
+      }
     }
 
     console.log('Extracting LP URL...');
@@ -200,17 +207,22 @@ function extractMemo(message) {
 }
 
 // 画像をGoogle Driveに保存する関数
-function saveImageToDrive(imageUrl, filename) {
-  console.log('Saving image to Drive:', { imageUrl, filename });
+function saveImageToDrive(downloadUrl, filename) {
+  console.log('Saving image to Drive:', { downloadUrl, filename });
 
   try {
-    const folder = getDriveFolder();
-    const response = UrlFetchApp.fetch(imageUrl);
+    // 画像をダウンロード
+    const response = UrlFetchApp.fetch(downloadUrl);
     const blob = response.getBlob();
+
+    // フォルダを取得または作成
+    const folder = getDriveFolder();
+
+    // ファイルを作成
     const file = folder.createFile(blob);
     file.setName(filename);
 
-    // 共有設定を変更
+    // 共有設定を変更（リンクを知っている人は誰でも閲覧可能）
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
     // スプレッドシートのIMAGE関数で表示可能なURLを生成
@@ -222,6 +234,7 @@ function saveImageToDrive(imageUrl, filename) {
 
   } catch (error) {
     console.error('Error saving image to Drive:', error);
+    console.error('Error details:', error.message);
     return null;
   }
 }

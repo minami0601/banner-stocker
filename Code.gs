@@ -321,14 +321,8 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo) {
   console.log('Saving to spreadsheet:', { imageUrl, lpUrl, genre, memo });
 
   try {
-    // スプレッドシートIDをプロパティから取得
-    const spreadsheetId = PropertiesService.getScriptProperties().getProperty('1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI');
-    if (!spreadsheetId) {
-      console.error('Spreadsheet ID not found in script properties');
-      return false;
-    }
-
-    // スプレッドシートを開く
+    // スプレッドシートを直接IDで開く
+    const spreadsheetId = '1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI';
     const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
     const sheet = spreadsheet.getActiveSheet();
 
@@ -351,6 +345,10 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo) {
 
     // 画像を表示するためのセルの高さを設定（200ピクセル）
     sheet.setRowHeight(lastRow + 1, 200);
+
+    // 画像セルの数式を設定
+    const imageCell = sheet.getRange(lastRow + 1, 2); // 2列目が画像URL
+    imageCell.setFormula(`=IMAGE("${imageUrl}")`);
 
     console.log('Successfully saved to spreadsheet');
     return true;

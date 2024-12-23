@@ -72,16 +72,31 @@ function processMessage(data) {
       timestamp
     });
 
-    // 画像メッセージの処理
-    const files = getChatworkMessageFiles(roomId, messageId);
-    if (files && files.length > 0) {
-      console.log('Image message detected, saving temporary data...');
-      return handleImageMessage(roomId, messageId, files[0], timestamp);
+    // メッセージ本文に[file_uploaded]が含まれているかチェック
+    if (messageBody.includes('[dtext:file_uploaded]')) {
+      console.log('Image message detected, processing...');
+      // ファイルIDを抽出
+      const fileIdMatch = messageBody.match(/\[download:(\d+)\]/);
+      if (fileIdMatch && fileIdMatch[1]) {
+        const fileId = fileIdMatch[1];
+        return handleImageMessage(roomId, messageId, { file_id: fileId }, timestamp);
+      }
+      return {
+        status: 'error',
+        message: 'Failed to extract file ID from image message'
+      };
     }
 
-    // テキストメッセージの処理（URL、ジャンル、メモを含む）
-    console.log('Text message detected, processing with saved image...');
-    return handleTextMessage(roomId, messageBody, timestamp);
+    // URLを含むメッセージの場合はテキストメッセージとして処理
+    if (messageBody.includes('http://') || messageBody.includes('https://')) {
+      console.log('Text message detected, processing with saved image...');
+      return handleTextMessage(roomId, messageBody, timestamp);
+    }
+
+    return {
+      status: 'ignored',
+      message: 'Message does not contain image or URL'
+    };
 
   } catch (error) {
     console.error('Error in processMessage:', error);

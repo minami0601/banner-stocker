@@ -91,11 +91,12 @@ function processMessage(data) {
 
 // 画像メッセージを処理する関数
 function handleImageMessage(roomId, messageId, fileInfo, timestamp) {
+  console.log('Handling image message:', { roomId, messageId, fileInfo, timestamp });
+
   const key = TEMP_IMAGE_PROPERTY_PREFIX + roomId;
   const imageData = {
     messageId: messageId,
     fileId: fileInfo.file_id,
-    filename: fileInfo.filename,
     timestamp: timestamp
   };
 
@@ -105,6 +106,8 @@ function handleImageMessage(roomId, messageId, fileInfo, timestamp) {
     JSON.stringify(imageData)
   );
 
+  console.log('Saved temporary image data:', imageData);
+
   return {
     status: 'success',
     message: 'Image saved temporarily. Waiting for text information.'
@@ -113,6 +116,8 @@ function handleImageMessage(roomId, messageId, fileInfo, timestamp) {
 
 // テキストメッセージを処理する関数
 function handleTextMessage(roomId, messageBody, currentTimestamp) {
+  console.log('Handling text message:', { roomId, messageBody, currentTimestamp });
+
   // 保存された画像情報を取得
   const key = TEMP_IMAGE_PROPERTY_PREFIX + roomId;
   const savedImageJson = PropertiesService.getScriptProperties().getProperty(key);
@@ -126,6 +131,7 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
   }
 
   const savedImage = JSON.parse(savedImageJson);
+  console.log('Retrieved saved image data:', savedImage);
 
   // タイムアウトチェック
   if (currentTimestamp - savedImage.timestamp > TEMP_IMAGE_TIMEOUT) {
@@ -142,6 +148,8 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
   const lpUrl = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
   const memo = extractMemo(messageBody);
+
+  console.log('Extracted information:', { lpUrl, genre, memo });
 
   // 必要な情報が揃っているか確認
   if (!lpUrl || !genre) {
@@ -165,7 +173,7 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
 
   // 画像をGoogle Driveに保存
   console.log('Saving image to Drive...');
-  const imageUrl = saveImageToDrive(downloadUrl, savedImage.filename);
+  const imageUrl = saveImageToDrive(downloadUrl, `banner_${new Date().getTime()}.png`);
   if (!imageUrl) {
     console.log('Failed to save image to Drive');
     return {
@@ -176,7 +184,14 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
 
   // スプレッドシートに保存
   console.log('Saving to spreadsheet...');
-  saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+  const result = saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+  if (!result) {
+    console.log('Failed to save to spreadsheet');
+    return {
+      status: 'error',
+      message: 'Failed to save to spreadsheet'
+    };
+  }
 
   // 一時データを削除
   PropertiesService.getScriptProperties().deleteProperty(key);

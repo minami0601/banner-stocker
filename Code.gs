@@ -5,6 +5,10 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// 一時保存用のプロパティ名
+const TEMP_IMAGE_PROPERTY_PREFIX = 'TEMP_IMAGE_';
+const TEMP_IMAGE_TIMEOUT = 60000; // 1分（ミリ秒）
+
 // Chatworkからのwebhookを受け取るエンドポイント
 function doPost(e) {
   console.log('Received POST request. Starting processing...');
@@ -59,72 +63,25 @@ function processMessage(data) {
     const messageId = message.message_id;
     const roomId = message.room_id;
     const messageBody = message.body;
+    const timestamp = message.send_time * 1000; // Unix時間（秒）をミリ秒に変換
 
     console.log('Message details:', {
       messageId,
       roomId,
-      messageBody
+      messageBody,
+      timestamp
     });
 
-    // 画像、URL、ジャンル、メモを抽出
-    console.log('Extracting image URL...');
+    // 画像メッセージの処理
     const files = getChatworkMessageFiles(roomId, messageId);
-    console.log('Retrieved files:', files);
-
-    let imageUrl = null;
     if (files && files.length > 0) {
-      console.log('Getting download URL for file:', files[0]);
-      const downloadUrl = getDownloadableImageUrl(roomId, files[0].file_id);
-      console.log('Got download URL:', downloadUrl);
-
-      if (downloadUrl) {
-        // 画像をGoogle Driveに保存
-        console.log('Saving image to Drive...');
-        imageUrl = saveImageToDrive(downloadUrl, files[0].filename);
-        console.log('Saved image to Drive, URL:', imageUrl);
-      }
+      console.log('Image message detected, saving temporary data...');
+      return handleImageMessage(roomId, messageId, files[0], timestamp);
     }
 
-    console.log('Extracting LP URL...');
-    const lpUrl = extractLpUrl(messageBody);
-    console.log('Extracted LP URL:', lpUrl);
-
-    console.log('Extracting genre...');
-    const genre = extractGenre(messageBody);
-    console.log('Extracted genre:', genre);
-
-    console.log('Extracting memo...');
-    const memo = extractMemo(messageBody);
-    console.log('Extracted memo:', memo);
-
-    // 必要な情報が揃っているか確認
-    if (!imageUrl || !lpUrl || !genre) {
-      console.log('Required information missing:', {
-        hasImage: !!imageUrl,
-        hasUrl: !!lpUrl,
-        hasGenre: !!genre,
-        genre: genre
-      });
-      return {
-        status: 'error',
-        message: 'Required information missing'
-      };
-    }
-
-    // スプレッドシートに保存
-    console.log('Saving to spreadsheet with data:', {
-      imageUrl,
-      lpUrl,
-      genre,
-      memo
-    });
-    saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
-    console.log('Successfully saved to spreadsheet');
-
-    return {
-      status: 'success',
-      message: 'Message processed successfully'
-    };
+    // テキストメッセージの処理（URL、ジャンル、メモを含む）
+    console.log('Text message detected, processing with saved image...');
+    return handleTextMessage(roomId, messageBody, timestamp);
 
   } catch (error) {
     console.error('Error in processMessage:', error);
@@ -132,46 +89,102 @@ function processMessage(data) {
   }
 }
 
-// 画像URLを抽出する関数
-function extractImageUrl(roomId, messageId) {
-  try {
-    // メッセージに添付されたファイルを取得
-    const files = getChatworkMessageFiles(roomId, messageId);
-    console.log('Retrieved files:', files);
+// 画像メッセージを処理する関数
+function handleImageMessage(roomId, messageId, fileInfo, timestamp) {
+  const key = TEMP_IMAGE_PROPERTY_PREFIX + roomId;
+  const imageData = {
+    messageId: messageId,
+    fileId: fileInfo.file_id,
+    filename: fileInfo.filename,
+    timestamp: timestamp
+  };
 
-    if (!files || files.length === 0) {
-      console.log('No files found in message');
-      return null;
-    }
+  // 一時データを保存
+  PropertiesService.getScriptProperties().setProperty(
+    key,
+    JSON.stringify(imageData)
+  );
 
-    // 画像ファイルを探す
-    const imageFile = files.find(file =>
-      file.filename.match(/\.(jpg|jpeg|png|gif)$/i)
-    );
+  return {
+    status: 'success',
+    message: 'Image saved temporarily. Waiting for text information.'
+  };
+}
 
-    if (!imageFile) {
-      console.log('No image file found in message');
-      return null;
-    }
+// テキストメッセージを処理する関数
+function handleTextMessage(roomId, messageBody, currentTimestamp) {
+  // 保存された画像情報を取得
+  const key = TEMP_IMAGE_PROPERTY_PREFIX + roomId;
+  const savedImageJson = PropertiesService.getScriptProperties().getProperty(key);
 
-    console.log('Found image file:', imageFile);
-
-    // 画像のダウンロードURLを取得
-    const downloadUrl = getDownloadableImageUrl(roomId, imageFile.file_id);
-    console.log('Got download URL:', downloadUrl);
-
-    if (!downloadUrl) {
-      console.log('Failed to get download URL');
-      return null;
-    }
-
-    // 画像をGoogle Driveに保存
-    return saveImageToDrive(downloadUrl, imageFile.filename);
-
-  } catch (error) {
-    console.error('Error extracting image URL:', error);
-    return null;
+  if (!savedImageJson) {
+    console.log('No saved image found');
+    return {
+      status: 'error',
+      message: 'No image found. Please send image first.'
+    };
   }
+
+  const savedImage = JSON.parse(savedImageJson);
+
+  // タイムアウトチェック
+  if (currentTimestamp - savedImage.timestamp > TEMP_IMAGE_TIMEOUT) {
+    console.log('Saved image has expired');
+    PropertiesService.getScriptProperties().deleteProperty(key);
+    return {
+      status: 'error',
+      message: 'Image data has expired. Please send image again.'
+    };
+  }
+
+  // テキスト情報を抽出
+  console.log('Extracting text information...');
+  const lpUrl = extractLpUrl(messageBody);
+  const genre = extractGenre(messageBody);
+  const memo = extractMemo(messageBody);
+
+  // 必要な情報が揃っているか確認
+  if (!lpUrl || !genre) {
+    console.log('Required text information missing');
+    return {
+      status: 'error',
+      message: 'Required information missing in text'
+    };
+  }
+
+  // 画像のダウンロードURLを取得
+  console.log('Getting download URL for saved image...');
+  const downloadUrl = getDownloadableImageUrl(roomId, savedImage.fileId);
+  if (!downloadUrl) {
+    console.log('Failed to get download URL');
+    return {
+      status: 'error',
+      message: 'Failed to process image'
+    };
+  }
+
+  // 画像をGoogle Driveに保存
+  console.log('Saving image to Drive...');
+  const imageUrl = saveImageToDrive(downloadUrl, savedImage.filename);
+  if (!imageUrl) {
+    console.log('Failed to save image to Drive');
+    return {
+      status: 'error',
+      message: 'Failed to save image'
+    };
+  }
+
+  // スプレッドシートに保存
+  console.log('Saving to spreadsheet...');
+  saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+
+  // 一時データを削除
+  PropertiesService.getScriptProperties().deleteProperty(key);
+
+  return {
+    status: 'success',
+    message: 'Successfully processed image and text'
+  };
 }
 
 // LPのURLを抽出する関数

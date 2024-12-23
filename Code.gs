@@ -315,3 +315,49 @@ function testProcessMessage() {
   // processMessage関数を実行
   processMessage(testData);
 }
+
+// スプレッドシートにデータを保存する関数
+function saveToSpreadsheet(imageUrl, lpUrl, genre, memo) {
+  console.log('Saving to spreadsheet:', { imageUrl, lpUrl, genre, memo });
+
+  try {
+    // スプレッドシートIDをプロパティから取得
+    const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    if (!spreadsheetId) {
+      console.error('Spreadsheet ID not found in script properties');
+      return false;
+    }
+
+    // スプレッドシートを開く
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = spreadsheet.getActiveSheet();
+
+    // 新しい行のデータを作成
+    const timestamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+    const newRow = [
+      timestamp,  // タイムスタンプ
+      imageUrl,   // 画像URL
+      lpUrl,      // LP URL
+      genre,      // ジャンル
+      memo        // メモ
+    ];
+
+    // 最終行の次の行に追加
+    const lastRow = sheet.getLastRow();
+    const targetRange = sheet.getRange(lastRow + 1, 1, 1, newRow.length);
+
+    // データを追加
+    targetRange.setValues([newRow]);
+
+    // 画像を表示するためのセルの高さを設定（200ピクセル）
+    sheet.setRowHeight(lastRow + 1, 200);
+
+    console.log('Successfully saved to spreadsheet');
+    return true;
+
+  } catch (error) {
+    console.error('Error saving to spreadsheet:', error);
+    console.error('Error details:', error.message);
+    return false;
+  }
+}

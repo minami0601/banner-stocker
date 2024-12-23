@@ -64,7 +64,7 @@ function getDownloadableImageUrl(roomId, fileId) {
   console.log('Getting download URL for room:', roomId, 'file:', fileId);
 
   try {
-    const url = `${CHATWORK_API_BASE_URL}/rooms/${roomId}/files/${fileId}`;
+    const url = `${CHATWORK_API_BASE_URL}/rooms/${roomId}/files/${fileId}?create_download_url=1`;
     const response = UrlFetchApp.fetch(url, {
       method: 'GET',
       headers: {
@@ -76,9 +76,16 @@ function getDownloadableImageUrl(roomId, fileId) {
     if (response.getResponseCode() === 200) {
       const fileData = JSON.parse(response.getContentText());
       console.log('Retrieved file data:', fileData);
-      return fileData.download_url;
+
+      if (fileData.download_url) {
+        console.log('Got download URL:', fileData.download_url);
+        return fileData.download_url;
+      } else {
+        console.error('Download URL not found in response');
+        return null;
+      }
     } else {
-      console.error('Failed to get download URL. Status code:', response.getResponseCode());
+      console.error('Failed to get file data. Status code:', response.getResponseCode());
       console.error('Response:', response.getContentText());
       return null;
     }

@@ -322,7 +322,7 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo) {
 
   try {
     // スプレッドシートIDをプロパティから取得
-    const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    const spreadsheetId = PropertiesService.getScriptProperties().getProperty('1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI');
     if (!spreadsheetId) {
       console.error('Spreadsheet ID not found in script properties');
       return false;

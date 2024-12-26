@@ -221,10 +221,23 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
 
 // LPのURLを抽出する関数
 function extractLpUrl(message) {
-  // URLを正規表現で抽出
+  // メッセージを行に分割
+  const lines = message.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return null;
+
+  // 1行目からURLを抽出
+  const firstLine = lines[0].trim();
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = message.match(urlRegex);
-  return matches ? matches[0] : null;
+  const matches = firstLine.match(urlRegex);
+
+  if (!matches) return null;
+
+  // 動画URLの場合は「動画:」を付けて返す
+  if (firstLine.startsWith('動画')) {
+    return '動画:' + matches[0];
+  }
+
+  return matches[0];
 }
 
 // ジャンルを抽出する関数

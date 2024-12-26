@@ -199,9 +199,11 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
 
   // スプレッドシートに保存
   console.log('Saving to spreadsheet...');
-  const result = saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
-  if (!result) {
-    console.log('Failed to save to spreadsheet');
+  try {
+    saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+    console.log('Successfully saved to spreadsheet');
+  } catch (error) {
+    console.error('Error saving to spreadsheet:', error);
     return {
       status: 'error',
       message: 'Failed to save to spreadsheet'
@@ -227,23 +229,25 @@ function extractLpUrl(message) {
 
 // ジャンルを抽出する関数
 function extractGenre(message) {
-  // ジャンルタグを探す（例: 「ジャンル：美容」や「#美容」など）
-  const genreMatch = message.match(/(?:ジャンル[：:]\s*|#)([^\s\n]+)/);
+  // メッセージを行に分割
+  const lines = message.split('\n').filter(line => line.trim());
 
-  if (genreMatch && genreMatch[1]) {
-    return genreMatch[1];
+  // 2行目（インデックス1）がジャンル
+  if (lines.length >= 2) {
+    return lines[1].trim();
   }
 
   return null;
 }
 
-// テモを抽出する関数
+// メモを抽出する関数
 function extractMemo(message) {
-  // メモタグを探す（例: 「メモ：ここにメモ」や「※ここにメモ」など）
-  const memoMatch = message.match(/(?:メモ[：:]\s*|※\s*)([^\n]+)/);
+  // メッセージを行に分割
+  const lines = message.split('\n').filter(line => line.trim());
 
-  if (memoMatch && memoMatch[1]) {
-    return memoMatch[1].trim();
+  // 3行目以降（インデックス2以降）がメモ
+  if (lines.length >= 3) {
+    return lines.slice(2).join('\n').trim();
   }
 
   return '';  // メモがない場合は空文字を返す
@@ -314,48 +318,4 @@ function testProcessMessage() {
 
   // processMessage関数を実行
   processMessage(testData);
-}
-
-// スプレッドシートにデータを保存する関数
-function saveToSpreadsheet(imageUrl, lpUrl, genre, memo) {
-  console.log('Saving to spreadsheet:', { imageUrl, lpUrl, genre, memo });
-
-  try {
-    // スプレッドシートを直接IDで開く
-    const spreadsheetId = '1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI';
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    const sheet = spreadsheet.getActiveSheet();
-
-    // 新しい行のデータを作成
-    const timestamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-    const newRow = [
-      timestamp,  // タイムスタンプ
-      imageUrl,   // 画像URL
-      lpUrl,      // LP URL
-      genre,      // ジャンル
-      memo        // メモ
-    ];
-
-    // 最終行の次の行に追加
-    const lastRow = sheet.getLastRow();
-    const targetRange = sheet.getRange(lastRow + 1, 1, 1, newRow.length);
-
-    // データを追加
-    targetRange.setValues([newRow]);
-
-    // 画像を表示するためのセルの高さを設定（200ピクセル）
-    sheet.setRowHeight(lastRow + 1, 200);
-
-    // 画像セルの数式を設定
-    const imageCell = sheet.getRange(lastRow + 1, 2); // 2列目が画像URL
-    imageCell.setFormula(`=IMAGE("${imageUrl}")`);
-
-    console.log('Successfully saved to spreadsheet');
-    return true;
-
-  } catch (error) {
-    console.error('Error saving to spreadsheet:', error);
-    console.error('Error details:', error.message);
-    return false;
-  }
 }

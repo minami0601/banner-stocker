@@ -2,7 +2,7 @@
 const SPREADSHEET_ID = '1e8cT09FlW2MHNt3VIiCyE-FLkEciUjgBdOG1HxV-lOI'; // ここにスプレッドシートのIDを入力してください
 
 // スプレッドシートにデータを保存する関数
-function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '') {
+function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '', videoUrl = '') {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
   // 目次シートの取得または作成
@@ -21,13 +21,6 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '') {
   // IDの生成（連番）
   const lastRow = genreSheet.getLastRow();
   const id = lastRow > 1 ? lastRow - 1 : 1; // ヘッダー行を考慮して-1
-
-  // URLの種類を判断
-  let videoUrl = '';
-  if (lpUrl.startsWith('動画:')) {
-    videoUrl = lpUrl.replace('動画:', '').trim();
-    lpUrl = '';
-  }
 
   // データの追加（新しい列順序: ID, プレビュー, LP URL, 動画URL, FV, メモ, ジャンル）
   genreSheet.appendRow([

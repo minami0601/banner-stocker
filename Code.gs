@@ -160,14 +160,14 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
 
   // テキスト情報を抽出
   console.log('Extracting text information...');
-  const lpUrl = extractLpUrl(messageBody);
+  const urlInfo = extractLpUrl(messageBody);
   const genre = extractGenre(messageBody);
   const memo = extractMemo(messageBody);
 
-  console.log('Extracted information:', { lpUrl, genre, memo });
+  console.log('Extracted information:', { urlInfo, genre, memo });
 
   // 必要な情報が揃っているか確認
-  if (!lpUrl || !genre) {
+  if (!urlInfo || !genre) {
     console.log('Required text information missing');
     return {
       status: 'error',
@@ -200,7 +200,24 @@ function handleTextMessage(roomId, messageBody, currentTimestamp) {
   // スプレッドシートに保存
   console.log('Saving to spreadsheet...');
   try {
-    saveToSpreadsheet(imageUrl, lpUrl, genre, memo);
+    // URLの種類に応じて適切な値を設定
+    let lpUrl = '';
+    let videoUrl = '';
+
+    switch (urlInfo.type) {
+      case 'lp':
+        lpUrl = urlInfo.lpUrl;
+        break;
+      case 'video':
+        videoUrl = urlInfo.videoUrl;
+        break;
+      case 'both':
+        lpUrl = urlInfo.lpUrl;
+        videoUrl = urlInfo.videoUrl;
+        break;
+    }
+
+    saveToSpreadsheet(imageUrl, lpUrl, genre, memo, videoUrl);
     console.log('Successfully saved to spreadsheet');
   } catch (error) {
     console.error('Error saving to spreadsheet:', error);
@@ -225,19 +242,48 @@ function extractLpUrl(message) {
   const lines = message.split('\n').filter(line => line.trim());
   if (lines.length === 0) return null;
 
-  // 1行目からURLを抽出
-  const firstLine = lines[0].trim();
+  // URLを抽出する正規表現
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = firstLine.match(urlRegex);
 
-  if (!matches) return null;
+  // 1行目を確認
+  const firstLine = lines[0].trim();
+  const firstLineMatches = firstLine.match(urlRegex);
 
-  // 動画URLの場合は「動画:」を付けて返す
-  if (firstLine.startsWith('動画')) {
-    return '動画:' + matches[0];
+  // 動画URLの場合
+  if (firstLine.startsWith('動画') && firstLineMatches) {
+    // 動画URLを設定
+    const videoUrl = firstLineMatches[0];
+
+    // 2行目にLP URLがあるか確認
+    if (lines.length > 1) {
+      const secondLine = lines[1].trim();
+      const secondLineMatches = secondLine.match(urlRegex);
+      if (secondLineMatches) {
+        // LP URLが存在する場合は、動画URLとLP URLの両方を返す
+        return {
+          type: 'both',
+          videoUrl: videoUrl,
+          lpUrl: secondLineMatches[0]
+        };
+      }
+    }
+
+    // LP URLがない場合は動画URLのみ返す
+    return {
+      type: 'video',
+      videoUrl: videoUrl
+    };
   }
 
-  return matches[0];
+  // 通常のLP URLの場合
+  if (firstLineMatches) {
+    return {
+      type: 'lp',
+      lpUrl: firstLineMatches[0]
+    };
+  }
+
+  return null;
 }
 
 // ジャンルを抽出する関数
@@ -318,7 +364,7 @@ function testProcessMessage() {
     webhook_event: {
       message_id: "test_message_id",
       room_id: 123456,
-      body: "テスト投稿です\nhttps://example.com/test\nジャンル：テスト\nメモ：これはテストメモです",
+      body: "テスト投稿です\nhttps://example.com/test\nジャンル：テスト\nメモ：��れはテストメモです",
       account: {
         account_id: 123456,
         name: "Test User"

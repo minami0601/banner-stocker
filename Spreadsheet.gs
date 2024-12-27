@@ -35,13 +35,21 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '', videoUrl = '') {
 
   // 追加した行の高さを設定
   const newLastRow = genreSheet.getLastRow();
-  genreSheet.setRowHeight(newLastRow, 200);  // 新しく追加した行の高さを200pxに設定
+  genreSheet.setRowHeight(newLastRow, 250);  // 新しく追加した行の高さを250pxに設定
 
   // 追加した行のスタイルを設定
-  const newRow = genreSheet.getRange(newLastRow, 1, 1, 7); // 7列に変更
+  const newRow = genreSheet.getRange(newLastRow, 1, 1, 7);
 
   // プレビュー列（2列目）の中央揃え
   newRow.getCell(1, 2).setHorizontalAlignment('center')
+                      .setVerticalAlignment('middle');
+
+  // LP URL列（3列目）の折り返し設定
+  newRow.getCell(1, 3).setWrap(true)
+                      .setVerticalAlignment('middle');
+
+  // 動画URL列（4列目）の折り返し設定
+  newRow.getCell(1, 4).setWrap(true)
                       .setVerticalAlignment('middle');
 
   // メモ列（6列目）の折り返し設定
@@ -65,15 +73,15 @@ function createGenreSheet(ss, genre) {
   // 列幅の設定
   sheet.setColumnWidth(1, 80);   // ID列
   sheet.setColumnWidth(2, 300);  // プレビュー列
-  sheet.setColumnWidth(3, 200);  // LP URL列
-  sheet.setColumnWidth(4, 200);  // 動画URL列
-  sheet.setColumnWidth(5, 100);  // FV列
+  sheet.setColumnWidth(3, 300);  // LP URL列（幅を広げる）
+  sheet.setColumnWidth(4, 300);  // 動画URL列（幅を広げる）
+  sheet.setColumnWidth(5, 300);  // FV列
   sheet.setColumnWidth(6, 200);  // メモ列
   sheet.setColumnWidth(7, 100);  // ジャンル列
 
   // 行の高さの設定
   sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
-  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 200);  // データ行を200pxに設定
+  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 250);  // データ行を250pxに設定
 
   // メモ列のスタイル設定
   const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
@@ -90,6 +98,11 @@ function createGenreSheet(ss, genre) {
   const previewColumn = sheet.getRange(2, 2, sheet.getMaxRows() - 1, 1);
   previewColumn.setHorizontalAlignment('center')
                .setVerticalAlignment('middle');
+
+  // URL列の折り返し設定
+  const urlColumns = sheet.getRange(2, 3, sheet.getMaxRows() - 1, 2); // 3列目と4列目（LP URLと動画URL）
+  urlColumns.setWrap(true)
+           .setVerticalAlignment('middle');
 
   return sheet;
 }
@@ -183,7 +196,7 @@ function adjustRowHeight(sheetName, rowIndex, height = 100) {
 }
 
 // 特定のシートの全データ行の高さを修正する関数
-function adjustAllRowHeights(sheetName, height = 200) {
+function adjustAllRowHeights(sheetName, height = 250) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
 

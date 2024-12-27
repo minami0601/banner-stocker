@@ -20,7 +20,7 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '', videoUrl = '') {
 
   // IDの生成（連番）
   const lastRow = genreSheet.getLastRow();
-  const id = lastRow > 1 ? lastRow - 1 : 1; // ヘッダー行を考慮して-1
+  const id = lastRow === 1 ? 1 : parseInt(genreSheet.getRange(lastRow, 1).getValue()) + 1;
 
   // データの追加（新しい列順序: ID, プレビュー, LP URL, 動画URL, FV, メモ, ジャンル）
   genreSheet.appendRow([
@@ -35,7 +35,7 @@ function saveToSpreadsheet(imageUrl, lpUrl, genre, memo = '', videoUrl = '') {
 
   // 追加した行の高さを設定
   const newLastRow = genreSheet.getLastRow();
-  genreSheet.setRowHeight(newLastRow, 100);  // 新しく追加した行の高さを100pxに設定
+  genreSheet.setRowHeight(newLastRow, 200);  // 新しく追加した行の高さを200pxに設定
 
   // 追加した行のスタイルを設定
   const newRow = genreSheet.getRange(newLastRow, 1, 1, 7); // 7列に変更
@@ -73,7 +73,7 @@ function createGenreSheet(ss, genre) {
 
   // 行の高さの設定
   sheet.setRowHeight(1, 30);  // ヘッダー行を高めに
-  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 100);  // データ行を高めに（プレビュー画像用）
+  sheet.setRowHeights(2, sheet.getMaxRows() - 1, 200);  // データ行を200pxに設定
 
   // メモ列のスタイル設定
   const memoColumn = sheet.getRange(2, 6, sheet.getMaxRows() - 1, 1);
@@ -183,7 +183,7 @@ function adjustRowHeight(sheetName, rowIndex, height = 100) {
 }
 
 // 特定のシートの全データ行の高さを修正する関数
-function adjustAllRowHeights(sheetName, height = 100) {
+function adjustAllRowHeights(sheetName, height = 200) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
 

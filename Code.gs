@@ -291,9 +291,12 @@ function extractGenre(message) {
   // メッセージを行に分割
   const lines = message.split('\n').filter(line => line.trim());
 
-  // 2行目（インデックス1）がジャンル
-  if (lines.length >= 2) {
-    return lines[1].trim();
+  // URLを含まない最初の行をジャンルとして扱う
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.includes('http://') && !line.includes('https://')) {
+      return line;
+    }
   }
 
   return null;
@@ -304,9 +307,19 @@ function extractMemo(message) {
   // メッセージを行に分割
   const lines = message.split('\n').filter(line => line.trim());
 
-  // 3行目以降（インデックス2以降）がメモ
-  if (lines.length >= 3) {
-    return lines.slice(2).join('\n').trim();
+  // ジャンルの行を見つける
+  let genreIndex = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.includes('http://') && !line.includes('https://')) {
+      genreIndex = i;
+      break;
+    }
+  }
+
+  // ジャンルの次の行以降をメモとして結合
+  if (genreIndex !== -1 && genreIndex + 1 < lines.length) {
+    return lines.slice(genreIndex + 1).join('\n').trim();
   }
 
   return '';  // メモがない場合は空文字を返す
